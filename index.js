@@ -1,17 +1,53 @@
+const http = require('http');
+const express = require('express');
+const app = express();
+app.use(express.static('public'));
+app.get("/", (request, response) => {
+  console.log(Date.now() + " Ping Received");
+  response.sendStatus(200)
+});
+app.listen(process.env.PORT);
 const Discord = require("discord.js");
+const DBL = require("dblapi.js");
 const db = require('quick.db'); 
+const config = require("./config.json"); 
+const currency = config.currency
 // Bot has started, with ${client.users.size} users, in ${client.channels.size} channels of ${client.guilds.size} guilds.
 // This is your client. Some people call it `bot`, some people call it `self`, 
 // some might call it `cootchie`. Either way, when you see `client.something`, or `bot.something`,
 // this is what we're refering to. Your client.
 //so u know what the problem is? 
-var devs = ['598255408850927618', '602259629820346385', '592037552731455513']
-const ownerID = "592037552731455513"; 
+var devs = ['602259629820346385']
+const ownerID = "602259629820346385"; 
 const client = new Discord.Client();
-let prefix = PREFIX; 
-PREFIX = k!;
+const server = http.createServer(app);
+const dbl = new DBL('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjYwNTQ1NDUyNjUxNzg3MDYwNCIsImJvdCI6dHJ1ZSwiaWF0IjoxNTY3MDIwMTYyfQ.Fzd-9qxPrj7IQycboAFb_WlphfaBfUWYgF0o-hrmLGA', { webhookAuth: 'password', webhookServer: server });
+let prefix = config.prefix
 let bot = client; 
 bot.commands = new Discord.Collection();
+
+dbl.webhook.on('ready', hook => {
+  console.log(`Webhook running with path ${hook.path}`);
+});
+dbl.webhook.on('vote', vote => {
+  console.log(`User with ID ${vote.user} just voted!`);
+});
+
+app.get('/', (req, res) => {
+  // ...
+});
+
+server.listen(5000, () => {
+  console.log('Listening');
+});
+
+dbl.on('posted', () => {
+  console.log('Server count posted!');
+})
+
+dbl.on('error', e => {
+ console.log(`Oops! ${e}`);
+})
 
 client.on("debug", (e) => console.info(e));
 client.on("ready", () => {
@@ -23,14 +59,17 @@ client.on("ready", () => {
     console.log(`====================================`);
     console.log(`Command Logs:`);
     console.log(` `);  
-client.user.setActivity(`Prefix ${prefix}`, {type: "LISTENING"}) 
+client.user.setActivity(`${client.users.size} Users`, {type: "LISTENING"}) 
+  setInterval(() => {
+        dbl.postStats(client.guilds.size, client.shards.Id, client.shards.total);
+    }, 1800000);
 });
 
 client.on("guildCreate", guild => {
   // This event triggers when the bot joins a guild.
   console.log(`New guild joined: ${guild.name} (id: ${guild.id}). This guild has ${guild.memberCount} members!`);
 client.channels.get('598335234425094146').send(`New guild joined: ${guild.name} (id: ${guild.id}). This guild has ${guild.memberCount} members!`);
-client.user.setActivity(`Prefix ${prefix}`, {type: "LISTENING"}) 
+client.user.setActivity(`${client.users.size} Users`, {type: "LISTENING"}) 
 });
 
 client.on("guildMemberAdd", (member) => {
@@ -38,11 +77,17 @@ client.on("guildMemberAdd", (member) => {
   client.channels.get('598280317404577892').send(`New User "${member.user.username}" has joined "${member.guild.name}"`)
 });
 
+client.on("guildMemberLeave", (member) => {
+  console.log(`New User "${member.user.username}" has left "${member.guild.name}"` );
+  client.channels.get('598280317404577892').send(`New User "
+${member.user.username}" has left "${member.guild.name}"`)
+});
+
 client.on("guildDelete", guild => {
   // this event triggers when the bot is removed from a guild.
   console.log(`I have been removed from: ${guild.name} (id: ${guild.id})`);
 client.channels.get('598335234425094146').send(`I have been removed from: ${guild.name} (id: ${guild.id})`);
-client.user.setActivity(`Prefix ${prefix}`, {type: "LISTENING"}) 
+client.user.setActivity(`${client.users.size} Users`, {type: "LISTENING"}) 
 });
 
 client.on("message", async (message) => {   
@@ -84,40 +129,48 @@ console.log(balance)
 
   }
   
-  if(command === 'rob') {
-    
-
-    let user = message.mentions.members.first()
-    let targetuser = await db.fetch(`bal--${user.id}`) // fetch mentioned users balance
-    let author = await db.fetch(`bal--${message.author.id}`) // fetch authors balance
-
-
-    if (!user) {
-        return message.channel.send('User not found.')
-    }
-    if (author < 500) { // if the authors balance is less than 500, return this.
-        return message.channel.send(`You need at least $500 to rob somebody.`)
-    }
-
-    if (targetuser <= 0) { // if mentioned user has 0 or less, it will return this.
-        return message.channel.send(`${user.user.username} does not have anything to rob.`)
-    }
-
-
-    let random = Math.floor(Math.random() * 500) + 1; // random number 500-1, you can change 500 to whatever you'd like
-
-
-    let embed = new Discord.RichEmbed()
-    .setDescription(`${message.author} you robbed ${user} and got away with ${random}!`)
-    .setColor("GREEN")
-    .setTimestamp()
-    message.channel.send(embed)
-
-
-    db.subtract(`bal--${user.id}`, random)
-    db.add(`bal--${message.author.id}`, random)
+  if (command === 'serverinfo') {
+    function checkDays(date) {
+        let now = new Date();
+        let diff = now.getTime() - date.getTime();
+        let days = Math.floor(diff / 86400000);
+        return days + (days == 1 ? " day" : " days") + " ago";
+    };
+    let verifLevels = ["None", "Low", "Medium", "(╯°□°）╯︵  ┻━┻", "┻━┻ミヽ(ಠ益ಠ)ノ彡┻━┻"];
+    let region = {
+        "brazil": ":flag_br: Brazil",
+        "eu-central": ":flag_eu: Central Europe",
+        "singapore": ":flag_sg: Singapore",
+        "us-central": ":flag_us: U.S. Central",
+        "sydney": ":flag_au: Sydney",
+        "us-east": ":flag_us: U.S. East",
+        "us-south": ":flag_us: U.S. South",
+        "us-west": ":flag_us: U.S. West",
+        "eu-west": ":flag_eu: Western Europe",
+        "vip-us-east": ":flag_us: VIP U.S. East",
+        "london": ":flag_gb: London",
+        "amsterdam": ":flag_nl: Amsterdam",
+        "hongkong": ":flag_hk: Hong Kong",
+        "russia": ":flag_ru: Russia",
+        "southafrica": ":flag_za:  South Africa"
+    };
+    const embed = new Discord.RichEmbed()
+        .setAuthor(message.guild.name, message.guild.iconURL)
+        .addField("Name", message.guild.name, true)
+        .addField("ID", message.guild.id, true)
+        .addField("Owner", `${message.guild.owner.user.username}#${message.guild.owner.user.discriminator}`, true)
+        .addField("Region", region[message.guild.region], true)
+        .addField("Total | Humans | Bots", `${message.guild.members.size} | ${message.guild.members.filter(member => !member.user.bot).size} | ${message.guild.members.filter(member => member.user.bot).size}`, true)
+        .addField("Verification Level", verifLevels[message.guild.verificationLevel], true)
+        .addField("Channels", message.guild.channels.size, true)
+        .addField("Roles", message.guild.roles.size, true)
+        .addField("Creation Date", `${message.channel.guild.createdAt.toUTCString().substr(0, 16)} (${checkDays(message.channel.guild.createdAt)})`, true)
+        .setThumbnail(message.guild.iconURL)
+    message.channel.send({embed});
+    console.log(`${message.author.tag} used serverinfo command`);
+    client.channels.get("598335234425094146").send(`${message.author.tag} Used the "serverinfo" command`);
   }
-	
+  
   if(command === 'work') {
     console.log(await db.fetch(`money.${message.author.id}`))
     var max = 100
@@ -129,8 +182,9 @@ console.log(balance)
   }
   
   if(command === 'autowork') {
+    if(!devs.includes(message.author.id)) return message.channel.send(`you can\'t do that.`) 
     let status = await db.fetch(`${message.author.id}.autowork`)
-    if(status === 1) return message.channel.send(`You already have autowork on! Use --end first`)
+    if(status === 1) return message.channel.send(`You already have autowork on! Use s!end first`)
     var max = 100
     var min = 20
     console.log(`${message.member.tag} has started to autowork`)
@@ -321,8 +375,8 @@ console.log(balance)
     const fetched = await message.channel.fetchMessages({limit: deleteCount});
     message.channel.bulkDelete(fetched)
       .catch(error => message.reply(`Couldn't delete messages because of: ${error}`));
-      console.log(`${message.author.tag} used "prune" command`);
-      client.channels.get("598335234425094146").send(`${message.author.tag} Used the "prune" command. 
+      console.log(`${message.author.tag} used "purge" command`);
+      client.channels.get("598335234425094146").send(`${message.author.tag} Used the "purge" command. 
       Check #deleted-messages-log to see what was deleted.`);
   }
   
@@ -351,38 +405,6 @@ console.log(balance)
     client.channels.get("598335234425094146").send(`${message.author.tag} Used the "avatar" command`);
   }
   
-  if(command === "serverinfo") {
-
-    let bots = 0;
-    let humans = 0;
-    
-    message.guild.members.forEach(member => {
-        if(member.user.bot) {
-            bots++
-        } else {
-            humans++
-        }
-    });
-
-   const sembed = new Discord.RichEmbed()
-   .setAuthor(message.guild.name, message.guild.iconURL)
-   .setColor(`#4286f4`)
-   .setThumbnail(message.guild.iconURL)
-   .addField("Owner", message.guild.owner, true)
-   .addField("Members",`${humans} (${bots} Bots)`, true)
-   .addField("ID", message.guild.id, true)
-   .addField("Channels", message.guild.channels.size, true)
-   .addField("Roles", message.guild.roles.size, true)
-   .addField("Emojis", message.guild.emojis.size, true)
-   .addField("Server Region", message.guild.region, true)
-   .addField("Verification level", message.guild.verificationLevel, true)
-   .setFooter(message.guild.createdAt);
-
-    message.channel.send(sembed)
-	  console.log(`${message.author.tag} used serverinfo command`);
-    client.channels.get("598335234425094146").send(`${message.author.tag} Used the "serverinfo" command`);
-  } 
-
   if(command === 'usercount') {
     let total = bot.users.size
     let inserver = message.guild.members.size
@@ -430,9 +452,8 @@ console.log(balance)
   if(command === "invite") { 
 
      const exampleEmbed = new Discord.RichEmbed()
-  	 .addField(`Invite Link`, `https://discordapp.com/api/oauth2/authorize?client_id=598324681325543424&permissions=930327783&scope=bot`) 
+  	 .addField(`Invite Link`, `https://discordapp.com/api/oauth2/authorize?client_id=605454526517870604&permissions=930327783&scope=bot`) 
 	   .setColor(``)
-
      message.channel.send(exampleEmbed);
 	  console.log(`${message.author.tag} used invite command`);
     client.channels.get("598335234425094146").send(`${message.author.tag} Used the "invite" command`);
@@ -441,157 +462,15 @@ console.log(balance)
   
   if(command === "support") { 
     const m = await message.channel.send(`Gathering Support Server`); 
-	 m.edit(`join the support server here --> https://discord.io/Venus6753`); 
+	 m.edit(`join the support server here --> https://discord.io/Storm1294`); 
 	  console.log(`${message.author.tag} used support command`);
     client.channels.get("598335234425094146").send(`${message.author.tag} Used the "support" command`);
 	 
   } 
   
     if(command === "help") {
-
-    const embed = {
-      "title": "Website Help Page",
-      "description": "This help page will show all of the commands. Click here for more.",
-      "url": "https://discordbots.org",
-      "color": 73621,
-      "timestamp": "2019-05-24:22:29:16.83",
-      "footer": {
-        "icon_url": "https://cdn.discordapp.com/avatars/598255408850927618/10c9789ea001b302c18e8607e5290967.png?size=2048",
-        "text": "Happy to help! -Venus"
-      },
-      "author": {
-        "name": "King Venus II",
-        "url": "https://discordbots.org",
-        "icon_url": "https://cdn.discordapp.com/avatars/598255408850927618/10c9789ea001b302c18e8607e5290967.png?size=2048"
-      },
-      "fields":  [
-        {
-          "name": "k!kick",
-          "value": "k!kick @playername <reason for kick>   |   Kicks a player from the guild"
-        },
-        {
-          "name": "k!work",
-	        "value": "k!work | earn money" 
-	      },
-	      { 
-	        "name": "k!pay",
-	        "value": "k!pay @playername <amount> | pays amount of money to mentioned user"
-	      },
-    	  { 
-          "name": "k!autowork",
-          "value": "k!autowork | automatically earn money" 
-	      },
-	      { 
-          "name": "k!end",
-          "value": "k!end | ends the autowork" 
-      	}, 
-      	{ 
-          "name": "k!remove", 
-	        "value": "k!remove <@playername> <amount> | removes amount of mentioned users money"
-	      },
-	      {
-          "name": "k!balance",
-      	  "value": "k!balance | shows your balance" 
-      	},
-	      { 
-          "name": "k!add",
-	        "value": "k!add @playername <amount> | adds money to mentinoed user | devs only" 
-      	},
-	      { 
-          "name": "k!usercount",
-          "value": "k!usercount  |  Shows all the users the bot is connected to"
-        },
-        { 
-          "name": "k!ban",
-          "value": "k!ban @playername <reason for ban>    |   Bans a player from the guild"
-        },
-        {
-          "name": "k!prune",
-          "value": "k!prune <number between 5 and 1000>   |   Removes certain number of messages"
-        },
-        {
-          "name": "k!support",
-          "value": "k!support   |   Gives link to the support server"
-        },
-        {
-          "name": "k!ping",
-          "value": "k!ping   |   Tells you how much delay the bot has"
-        },
-        {
-          "name": "k!mute",
-          "value": "k!mute @playername <reason for mute>  |   Mutes a person from the guild"
-        }, 
-        { 
-          "name": "k!unmute",
-          "value": "k!unmute @playername   |   Unmute's someone from the guild"
-        }, 
-        { 
-          "name": "k!botinfo",
-          "value": "k!botinfo   |   Shows information about the bot"
-        },
-        { 
-          "name": "k!servers",
-          "value": "k!servers   |   Shows what servers the bot is in"
-        },
-        {
-          "name": "k!whois",
-          "value": "k!whois  |   Shows some information about the user"
-        },
-        {
-          "name": "k!asl",
-          "value": "k!asl <age> <sex> <Location>   |   Sets your ASL (Age Sex Location)"
-        },
-        {
-          "name": "k!serverinfo",
-          "value": "k!serverinfo   |   Gives information about the server"
-        },
-        {
-          "name": "k!avatar",
-          "value": "k!avatar   |   Gets your avatar image   |   k!avatar @playername   |   Gets a players avatar image"  
-        },
-        { 
-          "name": "k!status", 
-          "value": "k!status | sets the bots status"
-        },
-        {
-          "name": "k!reset",
-          "value": "k!reset | resets the bot (devs only)"
-        },
-        {
-          "name": "k!uptime", 
-          "value": "k!uptime   | Shows the uptime of the bot"
-        },
-        { 
-          "name": "k!cointoss",
-          "value": "k!cointoss | Flips heads or tails"
-        }, 
-        { 
-          "name": "k!beep",
-          "value": "k!beep   |   boop" 
-        },
-        {
-          "name": "k!help",
-          "value": "k!help   |   Sends this message" 
-        },
-        {
-          "name": "k!invite",
-          "value": "k!invite   |   Gets the bots invite link"
-        },
-        {
-          "name": "k!say",
-          "value": "k!say <insert message here>   |   Have the bot say your message"
-        },
-        {
-          "name": "k!servers",
-          "value": "k!servers   |   Shows all the servers the bot is in"
-        }, 
-        { 
-          "name": "k!argsinfo",
-          "value": "k!argsinfo   |   Shows arguments about a given message"
-        }
-      ]
-    };
-    message.channel.send("Getting your help page...", { embed });
+    const m = await message.channel.send(`Getting Help Page`);
+     message.channel.send(`s!work, s!kick, s!pay, s!autowork, s!end, s!balance, s!usercount, s!ban, s!purge, s!support, s!ping, s!mute, s!unmute, s!botinfo, s!whois, s!asl, s!serverinfo, s!avatar, s!uptime, s!cointoss, s!beep, s!help, s!invite, s!say, s!argsinfo`);
     console.log(`${message.author.tag} used help command`);
     client.channels.get("598335234425094146").send(`${message.author.tag} Used the "help" command`);
   }
@@ -599,11 +478,11 @@ console.log(balance)
   if(command === "botinfo") { 
   
      const exampleEmbed = new Discord.RichEmbed()
-	.setTitle(`Made By Veภนs#6753`)
+	.setTitle(`Made By Stormy#7828`)
 	.addField(`Amount Of Servers`, `${bot.guilds.size}`) 
-	.addField(`Account Created`, `Tue, Jul 9, 2019 9:28 PM`, `true`) 
+	.addField(`Account Created`, `Mon, Jul 29, 2019 1:40 PM`, `true`) 
   .addField(`Users`, `${client.users.size}`)
-	.addField(`User ID`, `598324681325543424`) 
+	.addField(`User ID`, `605454526517870604`) 
 	.addField(`Status:`, `Online`) 
   .setThumbnail(``)	 
 	.setColor(`#0099ff`)
@@ -744,6 +623,7 @@ if(devs.includes(message.author.id)) {
   } 
    
   if(command === 'status') { 
+    if(devs.includes(message.author.id))
     bot.user.setActivity(`${args.join(' ')}`)
     message.channel.send(':white_check_mark: Successfully changed status')
   }
