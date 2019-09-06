@@ -8,8 +8,10 @@ app.get("/", (request, response) => {
 });
 app.listen(process.env.PORT);
 const Discord = require("discord.js");
+const fs = require("fs");
 const DBL = require("dblapi.js");
 const db = require('quick.db'); 
+const ms = require('ms')
 const config = require("./config.json"); 
 const currency = config.currency
 // Bot has started, with ${client.users.size} users, in ${client.channels.size} channels of ${client.guilds.size} guilds.
@@ -49,8 +51,30 @@ dbl.on('error', e => {
  console.log(`Oops! ${e}`);
 })
 
+
+function game2(){
+        bot.user.setPresence({
+        game: {
+            name: client.users.size,
+            type: "LISTENING"
+        }
+      });
+    setTimeout(game3, 300000);
+};
+
+function game3(){
+            bot.user.setPresence({
+        game: {
+            name: `Prefix: s!`,
+            type: "PLAYING"
+        }
+      });
+    setTimeout(game2, 300000);
+};
+
 client.on("debug", (e) => console.info(e));
 client.on("ready", () => {
+  setTimeout(game2, 15000);
   // This event will run if the bot starts, and logs in, successfully. 
   console.log(`Bot has started, with ${client.users.size} users, in ${client.channels.size} channels of ${client.guilds.size} guilds.`);
     console.log("Connected as " + client.user.tag) 
@@ -59,7 +83,7 @@ client.on("ready", () => {
     console.log(`====================================`);
     console.log(`Command Logs:`);
     console.log(` `);  
-client.user.setActivity(`${client.users.size} Users`, {type: "LISTENING"}) 
+client.user.setActivity(`With ${client.guilds.size} Guilds`, {type: "PLAYING"}) 
   setInterval(() => {
         dbl.postStats(client.guilds.size, client.shards.Id, client.shards.total);
     }, 1800000);
@@ -68,26 +92,15 @@ client.user.setActivity(`${client.users.size} Users`, {type: "LISTENING"})
 client.on("guildCreate", guild => {
   // This event triggers when the bot joins a guild.
   console.log(`New guild joined: ${guild.name} (id: ${guild.id}). This guild has ${guild.memberCount} members!`);
-client.channels.get('598335234425094146').send(`New guild joined: ${guild.name} (id: ${guild.id}). This guild has ${guild.memberCount} members!`);
-client.user.setActivity(`${client.users.size} Users`, {type: "LISTENING"}) 
-});
-
-client.on("guildMemberAdd", (member) => {
-  console.log(`New User "${member.user.username}" has joined "${member.guild.name}"` );
-  client.channels.get('598280317404577892').send(`New User "${member.user.username}" has joined "${member.guild.name}"`)
-});
-
-client.on("guildMemberLeave", (member) => {
-  console.log(`New User "${member.user.username}" has left "${member.guild.name}"` );
-  client.channels.get('598280317404577892').send(`New User "
-${member.user.username}" has left "${member.guild.name}"`)
+client.channels.get('613154435551461386').send(`New guild joined: ${guild.name} (id: ${guild.id}). This guild has ${guild.memberCount} members!`);
+client.user.setActivity(`With ${client.guilds.size} Guilds`, {type: "WATCHING"}) 
 });
 
 client.on("guildDelete", guild => {
   // this event triggers when the bot is removed from a guild.
   console.log(`I have been removed from: ${guild.name} (id: ${guild.id})`);
-client.channels.get('598335234425094146').send(`I have been removed from: ${guild.name} (id: ${guild.id})`);
-client.user.setActivity(`${client.users.size} Users`, {type: "LISTENING"}) 
+client.channels.get('613154435551461386').send(`I have been removed from: ${guild.name} (id: ${guild.id})`);
+client.user.setActivity(`With ${client.guilds.size} Guilds`, {type: "LISTENING"}) 
 });
 
 client.on("message", async (message) => {   
@@ -110,9 +123,9 @@ client.on("message", async (message) => {
     // Calculates ping between sending a message and editing it, giving a nice round-trip latency.
     // The second ping is an average latency between the bot and the websocket server (one-way, not round-trip)
     const m = await message.channel.send("Ping?");
-    m.edit(`Pong! Latency is ${m.createdTimestamp - message.createdTimestamp}ms. API Latency is ${Math.round(client.ping)}ms`);
+    m.edit(":ping_pong: Pong! " + Math.round(bot.ping) + "ms!");
 	console.log(`${message.author.tag} used "ping" command.`);
-    client.channels.get("598335234425094146").send(`${message.author.tag} used "ping" command.`);
+    client.channels.get("613154435551461386").send(`${message.author.tag} used "ping" command.`);
   }
   
   if(command === 'balance' || command === 'bal') {
@@ -168,8 +181,27 @@ console.log(balance)
         .setThumbnail(message.guild.iconURL)
     message.channel.send({embed});
     console.log(`${message.author.tag} used serverinfo command`);
-    client.channels.get("598335234425094146").send(`${message.author.tag} Used the "serverinfo" command`);
+    client.channels.get("613154435551461386").send(`${message.author.tag} Used the "serverinfo" command`);
   }
+  
+  if(command === "createinv"){
+     if(!devs.includes(message.author.id)) return message.channel.send(`You can't do that.`) 
+      if(args[0]){
+     const guild = args[0]
+    let channelID;
+    let channels = bot.guilds.get(guild).channels
+    channelLoop:
+    for(let c of channels){
+    let channelType =c[1].type;
+    if(channelType === "text"){
+    channelID = c[0]
+   break channelLoop
+  }}
+  bot.channels.get(channelID).createInvite({maxAge: 0})
+.then(invite=>message.author.send(`${invite}`))
+}else{
+message.channel.send("Please state a server ID")
+}}
   
   if(command === 'work') {
     console.log(await db.fetch(`money.${message.author.id}`))
@@ -308,7 +340,7 @@ console.log(balance)
     // And we get the bot to say the thing: 
     message.channel.send(sayMessage);
 	console.log(`${message.author.tag} used "say" command. Check #deleted-messages-log to see the original message. `);
-    client.channels.get("598335234425094146").send(`${message.author.tag} used "say" command. Check #deleted-messages-log to see the original message.`);
+    client.channels.get("613154435551461386").send(`${message.author.tag} used "say" command. Check #deleted-messages-log to see the original message.`);
   }
   
   else if(command === "kick") {
@@ -337,7 +369,7 @@ console.log(balance)
       .catch(error => message.reply(`Sorry ${message.author} I couldn't kick because of : ${error}`));
     message.reply(`${member.user.tag} has been kicked by ${message.author.tag} because: ${reason}`);
 	 console.log(`${message.author.tag} used "kick" command. ${member.user.tag} has been kicked by ${message.author.tag} because: ${reason} `);
-    client.channels.get("598335234425094146").send(`${message.author.tag} Used the "kick" command. 
+    client.channels.get("613154435551461386").send(`${message.author.tag} Used the "kick" command. 
     ${member.user.tag} has been kicked by ${message.author.tag} because: ${reason}`);
 
   }
@@ -376,7 +408,7 @@ console.log(balance)
     message.channel.bulkDelete(fetched)
       .catch(error => message.reply(`Couldn't delete messages because of: ${error}`));
       console.log(`${message.author.tag} used "purge" command`);
-      client.channels.get("598335234425094146").send(`${message.author.tag} Used the "purge" command. 
+      client.channels.get("613154435551461386").send(`${message.author.tag} Used the "purge" command. 
       Check #deleted-messages-log to see what was deleted.`);
   }
   
@@ -386,23 +418,44 @@ console.log(balance)
   let location = args[2];
   message.reply(`Hello ${message.author.username}, I see you're a ${age} year old ${sex} from ${location}. Wanna date?`);
    console.log(`${message.author.tag} used asl command`);
-    client.channels.get("598335234425094146").send(`${message.author.tag} Used the "asl" command`);
+    client.channels.get("613154435551461386").send(`${message.author.tag} Used the "asl" command`);
   } 
   
   if (command === "avatar") {
-	if (!message.mentions.users.size) {
-		return message.channel.send(`Your avatar: <${message.author.displayAvatarURL}>`);
-	}
+ let user;
+  if (message.mentions.users.size) {
+    user = message.mentions.users.first();
+  }
+  else if (args.id) {
+    user = await bot.utils.fetchMember(message.guild, args.id);
+    if (user) {
+      user = user.user;
+    }
+  }
+  if (!user) {
+    user = message.author;
+  }
 
-	const avatarList = message.mentions.users.map(user => {
-		return `${user.username}'s avatar: <${user.displayAvatarURL}>`;
-	});
-
-	// send the entire array of strings as a message
-	// by default, discord.js will `.join()` the array with `\n`
-	message.channel.send(avatarList);
+  await message.channel.send({
+    embed: {
+      color: 3015751,
+      fields: [
+        {
+          name: 'Avatar',
+          value: user.tag
+        }
+      ],
+      image: {
+        url: user.displayAvatarURL
+      },
+      footer: {
+       text: `Requested By: ${message.author.username}`,
+       icon_url: message.author.displayAvatarURL
+      },
+    }
+  });
 	 console.log(`${message.author.tag} used avatar command`);
-    client.channels.get("598335234425094146").send(`${message.author.tag} Used the "avatar" command`);
+    client.channels.get("613154435551461386").send(`${message.author.tag} Used the "avatar" command`);
   }
   
   if(command === 'usercount') {
@@ -414,7 +467,7 @@ console.log(balance)
     .addField('Total Users', total)
     message.channel.send(cEmbed)
       console.log(`${message.author.tag} used usercount command`);
-    client.channels.get("598335234425094146").send(`${message.author.tag} Used the "usercount" command`);
+    client.channels.get("613154435551461386").send(`${message.author.tag} Used the "usercount" command`);
 	
   }
   
@@ -437,7 +490,7 @@ console.log(balance)
  
         message.channel.send(embed);
     console.log(`${message.author.tag} used whois command`);
-    client.channels.get("598335234425094146").send(`${message.author.tag} Used the "whois" command`); 
+    client.channels.get("613154435551461386").send(`${message.author.tag} Used the "whois" command`); 
 	  
   } 
   
@@ -445,7 +498,7 @@ console.log(balance)
     const m = await message.channel.send(`Gathering hot to boop....`);
      m.edit(`boop`);
 	  console.log(`${message.author.tag} used beep command`);
-    client.channels.get("598335234425094146").send(`${message.author.tag} Used the "beep" command`);
+    client.channels.get("613154435551461386").send(`${message.author.tag} Used the "beep" command`);
 
   } 
   
@@ -456,7 +509,7 @@ console.log(balance)
 	   .setColor(``)
      message.channel.send(exampleEmbed);
 	  console.log(`${message.author.tag} used invite command`);
-    client.channels.get("598335234425094146").send(`${message.author.tag} Used the "invite" command`);
+    client.channels.get("613154435551461386").send(`${message.author.tag} Used the "invite" command`);
   
   } 
   
@@ -464,15 +517,40 @@ console.log(balance)
     const m = await message.channel.send(`Gathering Support Server`); 
 	 m.edit(`join the support server here --> https://discord.io/Storm1294`); 
 	  console.log(`${message.author.tag} used support command`);
-    client.channels.get("598335234425094146").send(`${message.author.tag} Used the "support" command`);
+    client.channels.get("613154435551461386").send(`${message.author.tag} Used the "support" command`);
 	 
   } 
   
     if(command === "help") {
+      const embed = new Discord.RichEmbed()
+  .setTitle('Storm Jr. Commands')
+  .setColor('#00FFFF')
+  .addField('s!help','displays all commands')
+  .addField('s!ban','bans a user from your server')
+  .addField('s!kick','kicks a user from your server')
+  .addField('s!say','Makes the bot say what you want')
+  .addField('s!purge','deletes messages up to 100')
+  .addField('s!invite','posts a link to invite the bot to your server')
+  .addField('s!usercount','shows total users')
+  .addField('s!support','sends support server link')
+  .addField('s!uptime','shows uptime for bot')
+  .addField('s!avatar','shows your avatar or s!avatar @playerid')
+  .addField('s!cointoss','flips heads or tails')
+  .addField('s!beep','simply replies with boop')
+  .addField('s!ping','replies with latency and api latency')
+  .addField('s!mute','mute someone')
+  .addField('s!unmute','unmutes someone')
+  .addField('s!bal | s!balance','shows your balance')
+  .addField('s!work','earns money')
+  .addField('s!whois','shows info about userid')
+  .addField('s!botinfo', 'shows info about the bot')
+  .addField('s!serverinfo', 'shows info about the server')
+  .addField('s!asl', 'sets your asl (age, sex, and location)')
+  
+    message.channel.send(embed);
     const m = await message.channel.send(`Getting Help Page`);
-     message.channel.send(`s!work, s!kick, s!pay, s!autowork, s!end, s!balance, s!usercount, s!ban, s!purge, s!support, s!ping, s!mute, s!unmute, s!botinfo, s!whois, s!asl, s!serverinfo, s!avatar, s!uptime, s!cointoss, s!beep, s!help, s!invite, s!say, s!argsinfo`);
     console.log(`${message.author.tag} used help command`);
-    client.channels.get("598335234425094146").send(`${message.author.tag} Used the "help" command`);
+    client.channels.get("613154435551461386").send(`${message.author.tag} Used the "help" command`);
   }
   
   if(command === "botinfo") { 
@@ -489,7 +567,7 @@ console.log(balance)
 
      message.channel.send(exampleEmbed);
       console.log(`${message.author.tag} used botinfo command`);
-    client.channels.get("598335234425094146").send(`${message.author.tag} Used the "botinfo" command`);
+    client.channels.get("613154435551461386").send(`${message.author.tag} Used the "botinfo" command`);
   } 
   
   if(command === 'argsinfo') {
@@ -499,7 +577,7 @@ console.log(balance)
 
 	message.channel.send(`Command name: ${command}\nArguments: ${args}`);
    console.log(`${message.author.tag} used argsinfo command`);
-    client.channels.get("598335234425094146").send(`${message.author.tag} Used the "argsinfo" command`);
+    client.channels.get("613154435551461386").send(`${message.author.tag} Used the "argsinfo" command`);
   }
   
   if(command === "mute") {
@@ -540,7 +618,7 @@ console.log(balance)
     });
     console.log(`${toMute.user.tag} got muted by ${message.author.tag} in ${message.channel.name}`)
     toMute.send(`You got *muted* in the Discord server **${message.guild.name}**`)
-    client.channels.get("598335234425094146").send(`${message.author.tag} Used the "mute" command`); 
+    client.channels.get("613154435551461386").send(`${message.author.tag} Used the "mute" command`); 
   } 
   
   if(command === "unmute") {
@@ -561,7 +639,7 @@ console.log(balance)
     console.log(`${toMute.user.tag} got unmuted by ${message.author.tag} in ${message.channel.name}`)
     toMute.send("You got *unmuted* in the Discord server **MoneyDropLoby**")
     return;
-	  client.channels.get("598335234425094146").send(`${message.author.tag} Used the "unmute" command`);
+	  client.channels.get("613154435551461386").send(`${message.author.tag} Used the "unmute" command`);
   } 
   
   if(command === "cointoss") {
@@ -574,7 +652,7 @@ console.log(balance)
 
      message.channel.send("You flipped.. **" + randomCointoss + "**")
     console.log(`${message.author.tag} used cointoss command`)
-    client.channels.get("598335234425094146").send(`${message.author.tag} Used the "cointoss" command`);
+    client.channels.get("613154435551461386").send(`${message.author.tag} Used the "cointoss" command`);
   } 
 
   if(command === "uptime") {
@@ -586,7 +664,7 @@ let minutes = Math.floor(totalSeconds / 60);
   let uptime = `${days} days, ${hours} hours, and ${minutes} minutes`;
    message.channel.send(uptime)
     console.log(`${message.author.tag} used uptime command`)
-    client.channels.get("598335234425094146").send(`${message.author.tag} Used the "uptime" command`);
+    client.channels.get("613154435551461386").send(`${message.author.tag} Used the "uptime" command`);
   }
   
   if(command === 'servers') {
@@ -603,7 +681,7 @@ let minutes = Math.floor(totalSeconds / 60);
     message.channel.send({embed: sembed}) 
     message.channel.send(`Serving ${bot.guilds.size} servers`)
     console.log(`${message.author.tag} used servers command`)
-    client.channels.get("598335234425094146").send(`${message.author.tag} Used the "servers" command`);
+    client.channels.get("613154435551461386").send(`${message.author.tag} Used the "servers" command`);
   } 
   
   if(command === "eval") {
